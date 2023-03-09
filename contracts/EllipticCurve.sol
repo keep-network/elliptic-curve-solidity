@@ -242,7 +242,7 @@ library EllipticCurve {
   /// @param _y2 coordinate y of square
   /// @param _z2 coordinate z of square
   /// @return (qx, qy, qz) P1+square in Jacobian
-  function jacAdd(
+  function _jacAdd(
     uint256 _x1,
     uint256 _y1,
     uint256 _z1,
@@ -291,6 +291,169 @@ library EllipticCurve {
     qy = addmod(qy, PP - mulmod(zs[1], hr[3], PP), PP);
     // qz = h*z1*z2
     uint256 qz = mulmod(hr[0], mulmod(_z1, _z2, PP), PP);
+    return(qx, qy, qz);
+  }
+
+  /// @dev Adds two points (x1, y1, z1) and (x2 y2, z2). (non-allocating)
+  /// @param _x1 coordinate x of P1
+  /// @param _y1 coordinate y of P1
+  /// @param _z1 coordinate z of P1
+  /// @param _x2 coordinate x of square
+  /// @param _y2 coordinate y of square
+  /// @param _z2 coordinate z of square
+  /// @return (qx, qy, qz) P1+square in Jacobian
+  function jacAdd(
+    uint256 _x1,
+    uint256 _y1,
+    uint256 _z1,
+    uint256 _x2,
+    uint256 _y2,
+    uint256 _z2)
+  internal pure returns (uint256, uint256, uint256)
+  {
+    if (_x1==0 && _y1==0)
+      return (_x2, _y2, _z2);
+    if (_x2==0 && _y2==0)
+      return (_x1, _y1, _z1);
+
+    uint256 qx;
+    uint256 qy;
+    uint256 qz;
+
+    assembly {
+      // We follow the equations described in https://pdfs.semanticscholar.org/5c64/29952e08025a9649c2b0ba32518e9a7fb5c2.pdf Section 5
+      // uint[4] memory zs; // z1^2, z1^3, z2^2, z2^3
+      let zs := mload(0x40)
+      // zs[0] = mulmod(_z1, _z1, PP);
+      mstore(zs, mulmod(_z1, _z1, PP))
+      // zs[1] = mulmod(_z1, zs[0], PP);
+      mstore(add(zs, 0x20), mulmod(_z1, mload(zs), PP))
+      // zs[2] = mulmod(_z2, _z2, PP);
+      mstore(add(zs, 0x40), mulmod(_z2, _z2, PP))
+      // zs[3] = mulmod(_z2, zs[2], PP);
+      mstore(add(zs, 0x60), mulmod(_z2, mload(add(zs, 0x40)), PP))
+
+      // u1, s1, u2, s2
+      // zzs = [
+      //   mulmod(_x1, zs[2], PP),
+      //   mulmod(_y1, zs[3], PP),
+      //   mulmod(_x2, zs[0], PP),
+      //   mulmod(_y2, zs[1], PP)
+      // ];
+      mstore(add(zs, 0x80), mulmod(_x1, mload(add(zs, 0x40)), PP))
+      mstore(add(zs, 0xa0), mulmod(_y1, mload(add(zs, 0x60)), PP))
+      mstore(add(zs, 0xc0), mulmod(_x2, mload(zs), PP))
+      mstore(add(zs, 0xe0), mulmod(_y2, mload(add(zs, 0x20)), PP))
+
+      let zzs := add(zs, 0x80)
+      // uint[4] memory hr;
+      let hr := zs
+      //h
+      // hr[0] = addmod(zzs[2], PP - zzs[0], PP);
+      mstore(
+        hr,
+        addmod(
+          mload(add(zzs, 0x40)),
+          sub(PP, mload(zzs)),
+          PP
+        )
+      )
+      //r
+      // hr[1] = addmod(zzs[3], PP - zzs[1], PP);
+      mstore(
+        add(hr, 0x20),
+        addmod(
+          mload(add(zzs, 0x60)),
+          sub(PP, mload(add(zzs, 0x20))),
+          PP
+        )
+      )
+      //h^2
+      // hr[2] = mulmod(hr[0], hr[0], PP);
+      mstore(
+        add(hr, 0x40),
+        mulmod(
+          mload(hr),
+          mload(hr),
+          PP
+        )
+      )
+      // h^3
+      // hr[3] = mulmod(hr[2], hr[0], PP);
+      mstore(
+        add(hr, 0x60),
+        mulmod(
+          mload(add(hr, 0x40)),
+          mload(hr),
+          PP
+        )
+      )
+
+      // qx = -h^3  -2u1h^2+r^2
+      // uint256 qx = addmod(mulmod(hr[1], hr[1], PP), PP - hr[3], PP);
+      qx := addmod(
+        mulmod(
+          mload(add(hr, 0x20)),
+          mload(add(hr, 0x20)),
+          PP
+        ),
+        sub(PP, mload(add(hr, 0x60))),
+        PP
+      )
+      // qx = addmod(qx, PP - mulmod(2, mulmod(zs[0], hr[2], PP), PP), PP);
+      qx := addmod(
+        qx,
+        sub(
+          PP,
+          mulmod(
+            2,
+            mulmod(
+              mload(zzs),
+              mload(add(hr, 0x40)),
+              PP
+            ),
+            PP
+          )
+        ),
+        PP
+      )
+      // qy = -s1*z1*h^3+r(u1*h^2 -x^3)
+      // uint256 qy = mulmod(hr[1], addmod(mulmod(zs[0], hr[2], PP), PP - qx, PP), PP);
+      qy := mulmod(
+        mload(add(hr, 0x20)),
+        addmod(
+          mulmod(
+            mload(zzs),
+            mload(add(hr, 0x40)),
+            PP
+          ),
+          sub(PP, qx),
+          PP
+        ),
+        PP
+      )
+      // qy = addmod(qy, PP - mulmod(zs[1], hr[3], PP), PP);
+      qy := addmod(
+        qy,
+        sub(
+          PP,
+          mulmod(
+            mload(add(zzs, 0x20)),
+            mload(add(hr, 0x60)),
+            PP
+          )
+        ),
+        PP
+      )
+      // qz = h*z1*z2
+      // uint256 qz = mulmod(hr[0], mulmod(_z1, _z2, PP), PP);
+      qz := mulmod(
+        mload(hr),
+        mulmod(_z1, _z2, PP),
+        PP
+      )
+    }
+
     return(qx, qy, qz);
   }
 
