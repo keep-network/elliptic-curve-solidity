@@ -349,26 +349,29 @@ library EllipticCurve {
     if (_z == 0)
       return (_x, _y, _z);
 
-    // We follow the equations described in https://pdfs.semanticscholar.org/5c64/29952e08025a9649c2b0ba32518e9a7fb5c2.pdf Section 5
-    // Note: there is a bug in the paper regarding the m parameter, M=3*(x1^2)+a*(z1^4)
-    // x, y, z at this point represent the squares of _x, _y, _z
-    uint256 x = mulmod(_x, _x, PP); //x1^2
-    uint256 y = mulmod(_y, _y, PP); //y1^2
-    uint256 z = mulmod(_z, _z, PP); //z1^2
+    uint256 x;
+    uint256 y;
+    uint256 z;
+    assembly {
+      // We follow the equations described in https://pdfs.semanticscholar.org/5c64/29952e08025a9649c2b0ba32518e9a7fb5c2.pdf Section 5
+      // Note: there is a bug in the paper regarding the m parameter, M=3*(x1^2)+a*(z1^4)
+      // x, y, z at this point represent the squares of _x, _y, _z
+      x := mulmod(_x, _x, PP) //x1^2
+      y := mulmod(_y, _y, PP) //y1^2
+      z := mulmod(_z, _z, PP) //z1^2
 
-    // s
-    uint s = mulmod(4, mulmod(_x, y, PP), PP);
-    // m
-    uint m = mulmod(3, x, PP);
+      let s := mulmod(4, mulmod(_x, y, PP), PP)
+      let m := mulmod(3, x, PP)
 
-    // x, y, z at this point will be reassigned and rather represent qx, qy, qz from the paper
-    // This allows to reduce the gas cost and stack footprint of the algorithm
-    // qx
-    x = addmod(mulmod(m, m, PP), PP - addmod(s, s, PP), PP);
-    // qy = -8*y1^4 + M(S-T)
-    y = addmod(mulmod(m, addmod(s, PP - x, PP), PP), PP - mulmod(8, mulmod(y, y, PP), PP), PP);
-    // qz = 2*y1*z1
-    z = mulmod(2, mulmod(_y, _z, PP), PP);
+      // x, y, z at this point will be reassigned and rather represent qx, qy, qz from the paper
+      // This allows to reduce the gas cost and stack footprint of the algorithm
+      // qx
+      x := addmod(mulmod(m, m, PP), sub(PP, addmod(s, s, PP)), PP)
+      // qy = -8*y1^4 + M(S-T)
+      y := addmod(mulmod(m, addmod(s, sub(PP, x), PP), PP), sub(PP, mulmod(8, mulmod(y, y, PP), PP)), PP)
+      // qz = 2*y1*z1
+      z := mulmod(2, mulmod(_y, _z, PP), PP)
+    }
 
     return (x, y, z);
   }
