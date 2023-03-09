@@ -25,12 +25,11 @@ contract EcGasHelper {
     return EllipticCurve.toAffine(
       _x,
       _y,
-      _z,
-      _pp);
+      _z);
   }
 
   function _invMod(uint256 _x, uint256 _pp) external returns (uint256) {
-    return EllipticCurve.invMod(_x, _pp);
+    return EllipticCurve.invMod(_x);
   }
 
   function _deriveY(
@@ -43,10 +42,7 @@ contract EcGasHelper {
   {
     return EllipticCurve.deriveY(
       _prefix,
-      _x,
-      _aa,
-      _bb,
-      _pp);
+      _x);
   }
 
   function _isOnCurve(
@@ -59,10 +55,7 @@ contract EcGasHelper {
   {
     return EllipticCurve.isOnCurve(
       _x,
-      _y,
-      _aa,
-      _bb,
-      _pp);
+      _y);
   }
 
   function _ecInv(
@@ -71,7 +64,7 @@ contract EcGasHelper {
     uint256 _pp)
   external returns (uint256, uint256)
   {
-    return EllipticCurve.ecInv(_x, _y, _pp);
+    return EllipticCurve.ecInv(_x, _y);
   }
 
   function _ecAdd(
@@ -87,9 +80,7 @@ contract EcGasHelper {
       _x1,
       _y1,
       _x2,
-      _y2,
-      _aa,
-      _pp);
+      _y2);
   }
 
   function _ecSub(
@@ -105,9 +96,7 @@ contract EcGasHelper {
       _x1,
       _y1,
       _x2,
-      _y2,
-      _aa,
-      _pp);
+      _y2);
   }
 
   function _ecMul(
@@ -121,13 +110,11 @@ contract EcGasHelper {
     return EllipticCurve.ecMul(
       _k,
       _x,
-      _y,
-      _aa,
-      _pp);
+      _y);
   }
 
   function _decomposeScalar (uint256 _k, uint256 _nn, uint256 _lambda) external returns (int256, int256) {
-    return FastEcMul.decomposeScalar(_k, _nn, _lambda);
+    return FastEcMul.decomposeScalar(_k);
   }
 
   function _ecSimMul(
@@ -140,10 +127,7 @@ contract EcGasHelper {
   {
     return FastEcMul.ecSimMul(
       _scalars,
-      _points,
-      _aa,
-      _beta,
-      _pp);
+      _points);
   }
 
 }

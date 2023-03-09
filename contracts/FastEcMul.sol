@@ -19,25 +19,32 @@ library FastEcMul {
   // Pre-computed constant for 2 ** 128 - 1
   uint256 private constant U128_MAX = 340282366920938463463374607431768211455;
 
+  uint256 private constant GX = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798;
+  uint256 private constant GY = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8;
+  uint256 private constant AA = 0;
+  uint256 private constant BB = 7;
+  uint256 private constant PP = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F;
+  uint256 private constant NN = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141;
+  uint256 private constant LAMBDA = 0x5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72;
+  uint256 private constant BETA = 0x7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee;
+
   /// @dev Decomposition of the scalar k in two scalars k1 and k2 with half bit-length, such that k=k1+k2*LAMBDA (mod n)
   /// @param _k the scalar to be decompose
-  /// @param _nn the modulus
-  /// @param _lambda is a root of the characteristic polynomial of an endomorphism of the curve
   /// @return k1 and k2  such that k=k1+k2*LAMBDA (mod n)
-  function decomposeScalar(uint256 _k, uint256 _nn, uint256 _lambda) internal pure returns (int256, int256) {
-    uint256 k = _k % _nn;
+  function decomposeScalar(uint256 _k) internal pure returns (int256, int256) {
+    uint256 k = _k % NN;
     // Extended Euclidean Algorithm for n and LAMBDA
     int256[2] memory t;
     t[0] = 1;
     t[1] = 0;
     uint256[2] memory r;
-    r[0] = uint256(_lambda);
-    r[1] = uint256(_nn);
+    r[0] = uint256(LAMBDA);
+    r[1] = uint256(NN);
 
-    // Loop while `r[0] >= sqrt(_nn)`
-    // Or in other words, `r[0] * r[0] >= _nn`
+    // Loop while `r[0] >= sqrt(NN)`
+    // Or in other words, `r[0] * r[0] >= NN`
     // When `r[0] >= 2**128`, `r[0] * r[0]` will overflow so we must check that before
-    while ((r[0] >= 2**128) || (r[0] * r[0] >= _nn)) {
+    while ((r[0] >= 2**128) || (r[0] * r[0] >= NN)) {
       uint256 quotient = r[1] / r[0];
       (r[1], r[0]) = (r[0], r[1] - quotient*r[0]);
       (t[1], t[0]) = (t[0], t[1] - int256(quotient)*t[0]);
@@ -60,18 +67,18 @@ library FastEcMul {
 
     //c1 and c2
     uint[2] memory c1;
-    (c1[0],c1[1]) = _bigDivision(uint256 (uint128 (test[0])) << 128 | uint128 (test[1]), uint256(test[2]) + (_nn / 2), _nn);
+    (c1[0],c1[1]) = _bigDivision(uint256 (uint128 (test[0])) << 128 | uint128 (test[1]), uint256(test[2]) + (NN / 2), NN);
     uint[2] memory c2;
-    (c2[0],c2[1]) = _bigDivision(uint256 (uint128 (test2[0])) << 128 | uint128 (test2[1]), uint256(test2[2]) + (_nn / 2), _nn);
+    (c2[0],c2[1]) = _bigDivision(uint256 (uint128 (test2[0])) << 128 | uint128 (test2[1]), uint256(test2[2]) + (NN / 2), NN);
 
     // the decomposition of k in k1 and k2
-    int256 k1 = int256((int256(k) - int256(c1[0]) * int256(ab[0]) - int256(c2[0]) * int256(ab[2])) % int256(_nn));
-    int256 k2 = int256((-int256(c1[0]) * int256(ab[1]) - int256(c2[0]) * int256(ab[3])) % int256(_nn));
-    if (uint256(_abs(k1)) > (_nn / 2)) {
-      k1 = int256(uint256(k1) - _nn);
+    int256 k1 = int256((int256(k) - int256(c1[0]) * int256(ab[0]) - int256(c2[0]) * int256(ab[2])) % int256(NN));
+    int256 k2 = int256((-int256(c1[0]) * int256(ab[1]) - int256(c2[0]) * int256(ab[3])) % int256(NN));
+    if (uint256(_abs(k1)) > (NN / 2)) {
+      k1 = int256(uint256(k1) - NN);
     }
-    if (uint256(_abs(k2)) > (_nn / 2)) {
-      k2 = int256(uint256(k2) - _nn);
+    if (uint256(_abs(k2)) > (NN / 2)) {
+      k2 = int256(uint256(k2) - NN);
     }
 
     return (k1, k2);
@@ -84,10 +91,7 @@ library FastEcMul {
   /// @param _points An array with the affine coordinates of both P and Q, i.e., [P1, P2, Q1, Q2]
   function ecSimMul(
     int256[4] memory _scalars,
-    uint256[4] memory _points,
-    uint256 _aa,
-    uint256 _beta,
-    uint256 _pp)
+    uint256[4] memory _points)
   internal pure returns (uint256, uint256)
   {
     uint256[4] memory wnaf;
@@ -104,30 +108,20 @@ library FastEcMul {
     (uint256 x, uint256 y, uint256 z) = _simMulWnaf(
       wnaf,
       maxCount,
-      _points,
-      _aa,
-      _beta,
-      _pp);
+      _points);
 
     return EllipticCurve.toAffine(
       x,
       y,
-      z,
-      _pp);
+      z);
   }
 
   /// @dev Compute the look up table for the simultaneous multiplication (P, 3P,..,Q,3Q,..).
   /// @param _iP the look up table were values will be stored
   /// @param _points the points P and Q to be multiplied
-  /// @param _aa constant of the curve
-  /// @param _beta constant of the curve (endomorphism)
-  /// @param _pp the modulus
   function _lookupSimMul(
     uint256[3][4][4] memory _iP,
-    uint256[4] memory _points,
-    uint256 _aa,
-    uint256 _beta,
-    uint256 _pp)
+    uint256[4] memory _points)
   private pure
   {
     uint256[3][4] memory iPj;
@@ -140,40 +134,35 @@ library FastEcMul {
     (double[0], double[1], double[2]) = EllipticCurve.jacDouble(
       iPj[0][0],
       iPj[0][1],
-      1,
-      _aa,
-      _pp);
+      1);
     (iPj[1][0], iPj[1][1], iPj[1][2]) = EllipticCurve.jacAdd(
       double[0],
       double[1],
       double[2],
       iPj[0][0],
       iPj[0][1],
-      iPj[0][2],
-      _pp);
+      iPj[0][2]);
     (iPj[2][0], iPj[2][1], iPj[2][2]) = EllipticCurve.jacAdd(
       double[0],
       double[1],
       double[2],
       iPj[1][0],
       iPj[1][1],
-      iPj[1][2],
-      _pp);
+      iPj[1][2]);
     (iPj[3][0], iPj[3][1], iPj[3][2]) = EllipticCurve.jacAdd(
       double[0],
       double[1],
       double[2],
       iPj[2][0],
       iPj[2][1],
-      iPj[2][2],
-      _pp);
+      iPj[2][2]);
 
     // P2 Lookup Table
-    _iP[1][0] = [mulmod(_beta, _points[0], _pp), _points[1], 1];	// P2
+    _iP[1][0] = [mulmod(BETA, _points[0], PP), _points[1], 1];	// P2
 
-    _iP[1][1] = [mulmod(_beta, iPj[1][0], _pp), iPj[1][1], iPj[1][2]];
-    _iP[1][2] = [mulmod(_beta, iPj[2][0], _pp), iPj[2][1], iPj[2][2]];
-    _iP[1][3] = [mulmod(_beta, iPj[3][0], _pp), iPj[3][1], iPj[3][2]];
+    _iP[1][1] = [mulmod(BETA, iPj[1][0], PP), iPj[1][1], iPj[1][2]];
+    _iP[1][2] = [mulmod(BETA, iPj[2][0], PP), iPj[2][1], iPj[2][2]];
+    _iP[1][3] = [mulmod(BETA, iPj[3][0], PP), iPj[3][1], iPj[3][2]];
 
     // Q1 Lookup Table
     iPj = _iP[2];
@@ -181,40 +170,35 @@ library FastEcMul {
     (double[0], double[1], double[2]) = EllipticCurve.jacDouble(
       iPj[0][0],
       iPj[0][1],
-      1,
-      _aa,
-      _pp);
+      1);
     (iPj[1][0], iPj[1][1], iPj[1][2]) = EllipticCurve.jacAdd(
       double[0],
       double[1],
       double[2],
       iPj[0][0],
       iPj[0][1],
-      iPj[0][2],
-      _pp);
+      iPj[0][2]);
     (iPj[2][0], iPj[2][1], iPj[2][2]) = EllipticCurve.jacAdd(
       double[0],
       double[1],
       double[2],
       iPj[1][0],
       iPj[1][1],
-      iPj[1][2],
-      _pp);
+      iPj[1][2]);
     (iPj[3][0], iPj[3][1], iPj[3][2]) = EllipticCurve.jacAdd(
       double[0],
       double[1],
       double[2],
       iPj[2][0],
       iPj[2][1],
-      iPj[2][2],
-      _pp);
+      iPj[2][2]);
 
     // Q2 Lookup Table
-    _iP[3][0] = [mulmod(_beta, _points[2], _pp), _points[3], 1];	// P2
+    _iP[3][0] = [mulmod(BETA, _points[2], PP), _points[3], 1];	// P2
 
-    _iP[3][1] = [mulmod(_beta, iPj[1][0], _pp), iPj[1][1], iPj[1][2]];
-    _iP[3][2] = [mulmod(_beta, iPj[2][0], _pp), iPj[2][1], iPj[2][2]];
-    _iP[3][3] = [mulmod(_beta, iPj[3][0], _pp), iPj[3][1], iPj[3][2]];
+    _iP[3][1] = [mulmod(BETA, iPj[1][0], PP), iPj[1][1], iPj[1][2]];
+    _iP[3][2] = [mulmod(BETA, iPj[2][0], PP), iPj[2][1], iPj[2][2]];
+    _iP[3][3] = [mulmod(BETA, iPj[3][0], PP), iPj[3][1], iPj[3][2]];
   }
 
   /// @dev WNAF integer representation. Computes the WNAF representation of an integer, and puts the resulting array of coefficients in memory.
@@ -250,27 +234,18 @@ library FastEcMul {
   /// @param _wnafPointer the decomposed scalars to be multiplied in wnaf form (k1, k2, l1, l2)
   /// @param  _length the length of the WNAF representation array
   /// @param _points the points P and Q to be multiplied
-  /// @param _aa constant of the curve
-  /// @param _beta constant of the curve (endomorphism)
-  /// @param _pp the modulus
   /// @return (qx, qy, qz) d*P1 in Jacobian
   function _simMulWnaf(
     uint256[4] memory _wnafPointer,
     uint256 _length,
-    uint256[4] memory _points,
-    uint256 _aa,
-    uint256 _beta,
-    uint256 _pp)
+    uint256[4] memory _points)
   private pure  returns (uint256, uint256, uint256)
   {
     uint[3] memory mulPoint;
     uint256[3][4][4] memory iP;
     _lookupSimMul(
       iP,
-      _points,
-      _aa,
-      _beta,
-      _pp);
+      _points);
 
     uint256 ki;
     uint256 ptr;
@@ -280,9 +255,7 @@ library FastEcMul {
       (mulPoint[0], mulPoint[1], mulPoint[2]) = EllipticCurve.jacDouble(
         mulPoint[0],
         mulPoint[1],
-        mulPoint[2],
-        _aa,
-        _pp);
+        mulPoint[2]);
 
       ptr = _wnafPointer[0] + _length;
       assembly {
@@ -295,16 +268,14 @@ library FastEcMul {
           mulPoint[1],
           mulPoint[2],
           iP[0][(15 - ki) / 2][0],
-          (_pp - iP[0][(15 - ki) / 2][1]) % _pp, iP[0][(15 - ki) / 2][2],
-          _pp);
+          (PP - iP[0][(15 - ki) / 2][1]) % PP, iP[0][(15 - ki) / 2][2]);
       } else if (ki > 0) {
         (mulPoint[0], mulPoint[1], mulPoint[2]) = EllipticCurve.jacAdd(
           mulPoint[0],
           mulPoint[1],
           mulPoint[2],
           iP[0][(ki - 1) / 2][0], iP[0][(ki - 1) / 2][1],
-          iP[0][(ki - 1) / 2][2],
-          _pp);
+          iP[0][(ki - 1) / 2][2]);
       }
 
       ptr = _wnafPointer[1] + _length;
@@ -318,8 +289,7 @@ library FastEcMul {
           mulPoint[1],
           mulPoint[2],
           iP[1][(15 - ki) / 2][0],
-          (_pp - iP[1][(15 - ki) / 2][1]) % _pp, iP[1][(15 - ki) / 2][2],
-          _pp);
+          (PP - iP[1][(15 - ki) / 2][1]) % PP, iP[1][(15 - ki) / 2][2]);
 
       } else if (ki > 0) {
         (mulPoint[0], mulPoint[1], mulPoint[2]) = EllipticCurve.jacAdd(
@@ -327,8 +297,7 @@ library FastEcMul {
           mulPoint[1],
           mulPoint[2],
           iP[1][(ki - 1) / 2][0],
-          iP[1][(ki - 1) / 2][1], iP[1][(ki - 1) / 2][2],
-          _pp);
+          iP[1][(ki - 1) / 2][1], iP[1][(ki - 1) / 2][2]);
       }
 
       ptr = _wnafPointer[2] + _length;
@@ -342,8 +311,7 @@ library FastEcMul {
           mulPoint[1],
           mulPoint[2],
           iP[2][(15 - ki) / 2][0],
-          (_pp - iP[2][(15 - ki) / 2][1]) % _pp, iP[2][(15 - ki) / 2][2],
-          _pp);
+          (PP - iP[2][(15 - ki) / 2][1]) % PP, iP[2][(15 - ki) / 2][2]);
       } else if (ki > 0) {
         (mulPoint[0], mulPoint[1], mulPoint[2]) = EllipticCurve.jacAdd(
           mulPoint[0],
@@ -351,8 +319,7 @@ library FastEcMul {
           mulPoint[2],
           iP[2][(ki - 1) / 2][0],
           iP[2][(ki - 1) / 2][1],
-          iP[2][(ki - 1) / 2][2],
-          _pp);
+          iP[2][(ki - 1) / 2][2]);
       }
 
       ptr = _wnafPointer[3] + _length;
@@ -366,17 +333,15 @@ library FastEcMul {
           mulPoint[1],
           mulPoint[2],
           iP[3][(15 - ki) / 2][0],
-          (_pp - iP[3][(15 - ki) / 2][1]) % _pp,
-          iP[3][(15 - ki) / 2][2],
-          _pp);
+          (PP - iP[3][(15 - ki) / 2][1]) % PP,
+          iP[3][(15 - ki) / 2][2]);
       } else if (ki > 0) {
         (mulPoint[0], mulPoint[1], mulPoint[2]) = EllipticCurve.jacAdd(
           mulPoint[0],
           mulPoint[1],
           mulPoint[2],
           iP[3][(ki - 1) / 2][0],
-          iP[3][(ki - 1) / 2][1], iP[3][(ki - 1) / 2][2],
-          _pp);
+          iP[3][(ki - 1) / 2][1], iP[3][(ki - 1) / 2][2]);
       }
     }
 

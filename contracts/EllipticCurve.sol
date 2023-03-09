@@ -15,33 +15,37 @@ library EllipticCurve {
   // Pre-computed constant for 2 ** 255
   uint256 constant private U255_MAX_PLUS_1 = 57896044618658097711785492504343953926634992332820282019728792003956564819968;
 
+  uint256 private constant GX = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798;
+  uint256 private constant GY = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8;
+  uint256 private constant AA = 0;
+  uint256 private constant BB = 7;
+  uint256 private constant PP = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F;
+
   /// @dev Modular euclidean inverse of a number (mod p).
   /// @param _x The number
-  /// @param _pp The modulus
-  /// @return q such that x*q = 1 (mod _pp)
-  function invMod(uint256 _x, uint256 _pp) internal pure returns (uint256) {
-    require(_x != 0 && _x != _pp && _pp != 0, "Invalid number");
+  /// @return q such that x*q = 1 (mod PP)
+  function invMod(uint256 _x) internal pure returns (uint256) {
+    require(_x != 0 && _x != PP && PP != 0, "Invalid number");
     uint256 q = 0;
     uint256 newT = 1;
-    uint256 r = _pp;
+    uint256 r = PP;
     uint256 t;
     while (_x != 0) {
       t = r / _x;
-      (q, newT) = (newT, addmod(q, (_pp - mulmod(t, newT, _pp)), _pp));
+      (q, newT) = (newT, addmod(q, (PP - mulmod(t, newT, PP)), PP));
       (r, _x) = (_x, r - t * _x);
     }
 
     return q;
   }
 
-  /// @dev Modular exponentiation, b^e % _pp.
+  /// @dev Modular exponentiation, b^e % PP.
   /// Source: https://github.com/androlo/standard-contracts/blob/master/contracts/src/crypto/ECCMath.sol
   /// @param _base base
   /// @param _exp exponent
-  /// @param _pp modulus
-  /// @return r such that r = b**e (mod _pp)
-  function expMod(uint256 _base, uint256 _exp, uint256 _pp) internal pure returns (uint256) {
-    require(_pp!=0, "Modulus is zero");
+  /// @return r such that r = b**e (mod PP)
+  function expMod(uint256 _base, uint256 _exp) internal pure returns (uint256) {
+    require(PP!=0, "Modulus is zero");
 
     if (_base == 0)
       return 0;
@@ -52,10 +56,10 @@ library EllipticCurve {
     uint256 bit = U255_MAX_PLUS_1;
     assembly {
       for { } gt(bit, 0) { }{
-        r := mulmod(mulmod(r, r, _pp), exp(_base, iszero(iszero(and(_exp, bit)))), _pp)
-        r := mulmod(mulmod(r, r, _pp), exp(_base, iszero(iszero(and(_exp, div(bit, 2))))), _pp)
-        r := mulmod(mulmod(r, r, _pp), exp(_base, iszero(iszero(and(_exp, div(bit, 4))))), _pp)
-        r := mulmod(mulmod(r, r, _pp), exp(_base, iszero(iszero(and(_exp, div(bit, 8))))), _pp)
+        r := mulmod(mulmod(r, r, PP), exp(_base, iszero(iszero(and(_exp, bit)))), PP)
+        r := mulmod(mulmod(r, r, PP), exp(_base, iszero(iszero(and(_exp, div(bit, 2))))), PP)
+        r := mulmod(mulmod(r, r, PP), exp(_base, iszero(iszero(and(_exp, div(bit, 4))))), PP)
+        r := mulmod(mulmod(r, r, PP), exp(_base, iszero(iszero(and(_exp, div(bit, 8))))), PP)
         bit := div(bit, 16)
       }
     }
@@ -67,19 +71,17 @@ library EllipticCurve {
   /// @param _x coordinate x
   /// @param _y coordinate y
   /// @param _z coordinate z
-  /// @param _pp the modulus
   /// @return (x', y') affine coordinates
   function toAffine(
     uint256 _x,
     uint256 _y,
-    uint256 _z,
-    uint256 _pp)
+    uint256 _z)
   internal pure returns (uint256, uint256)
   {
-    uint256 zInv = invMod(_z, _pp);
-    uint256 zInv2 = mulmod(zInv, zInv, _pp);
-    uint256 x2 = mulmod(_x, zInv2, _pp);
-    uint256 y2 = mulmod(_y, mulmod(zInv, zInv2, _pp), _pp);
+    uint256 zInv = invMod(_z);
+    uint256 zInv2 = mulmod(zInv, zInv, PP);
+    uint256 x2 = mulmod(_x, zInv2, PP);
+    uint256 y2 = mulmod(_y, mulmod(zInv, zInv2, PP), PP);
 
     return (x2, y2);
   }
@@ -87,58 +89,42 @@ library EllipticCurve {
   /// @dev Derives the y coordinate from a compressed-format point x [[SEC-1]](https://www.secg.org/SEC1-Ver-1.0.pdf).
   /// @param _prefix parity byte (0x02 even, 0x03 odd)
   /// @param _x coordinate x
-  /// @param _aa constant of curve
-  /// @param _bb constant of curve
-  /// @param _pp the modulus
   /// @return y coordinate y
   function deriveY(
     uint8 _prefix,
-    uint256 _x,
-    uint256 _aa,
-    uint256 _bb,
-    uint256 _pp)
+    uint256 _x)
   internal pure returns (uint256)
   {
     require(_prefix == 0x02 || _prefix == 0x03, "Invalid compressed EC point prefix");
 
     // x^3 + ax + b
-    uint256 y2 = addmod(mulmod(_x, mulmod(_x, _x, _pp), _pp), addmod(mulmod(_x, _aa, _pp), _bb, _pp), _pp);
-    y2 = expMod(y2, (_pp + 1) / 4, _pp);
+    uint256 y2 = addmod(mulmod(_x, mulmod(_x, _x, PP), PP), BB, PP);
+    y2 = expMod(y2, (PP + 1) / 4);
     // uint256 cmp = yBit ^ y_ & 1;
-    uint256 y = (y2 + _prefix) % 2 == 0 ? y2 : _pp - y2;
+    uint256 y = (y2 + _prefix) % 2 == 0 ? y2 : PP - y2;
 
     return y;
   }
 
-  /// @dev Check whether point (x,y) is on curve defined by a, b, and _pp.
+  /// @dev Check whether point (x,y) is on curve defined by a, b, and PP.
   /// @param _x coordinate x of P1
   /// @param _y coordinate y of P1
-  /// @param _aa constant of curve
-  /// @param _bb constant of curve
-  /// @param _pp the modulus
   /// @return true if x,y in the curve, false else
   function isOnCurve(
     uint _x,
-    uint _y,
-    uint _aa,
-    uint _bb,
-    uint _pp)
+    uint _y)
   internal pure returns (bool)
   {
-    if (0 == _x || _x >= _pp || 0 == _y || _y >= _pp) {
+    if (0 == _x || _x >= PP || 0 == _y || _y >= PP) {
       return false;
     }
     // y^2
-    uint lhs = mulmod(_y, _y, _pp);
+    uint lhs = mulmod(_y, _y, PP);
     // x^3
-    uint rhs = mulmod(mulmod(_x, _x, _pp), _x, _pp);
-    if (_aa != 0) {
-      // x^3 + a*x
-      rhs = addmod(rhs, mulmod(_x, _aa, _pp), _pp);
-    }
-    if (_bb != 0) {
+    uint rhs = mulmod(mulmod(_x, _x, PP), _x, PP);
+    if (BB != 0) {
       // x^3 + a*x + b
-      rhs = addmod(rhs, _bb, _pp);
+      rhs = addmod(rhs, BB, PP);
     }
 
     return lhs == rhs;
@@ -147,15 +133,13 @@ library EllipticCurve {
   /// @dev Calculate inverse (x, -y) of point (x, y).
   /// @param _x coordinate x of P1
   /// @param _y coordinate y of P1
-  /// @param _pp the modulus
   /// @return (x, -y)
   function ecInv(
     uint256 _x,
-    uint256 _y,
-    uint256 _pp)
+    uint256 _y)
   internal pure returns (uint256, uint256)
   {
-    return (_x, (_pp - _y) % _pp);
+    return (_x, (PP - _y) % PP);
   }
 
   /// @dev Add two points (x1, y1) and (x2, y2) in affine coordinates.
@@ -163,16 +147,12 @@ library EllipticCurve {
   /// @param _y1 coordinate y of P1
   /// @param _x2 coordinate x of P2
   /// @param _y2 coordinate y of P2
-  /// @param _aa constant of the curve
-  /// @param _pp the modulus
   /// @return (qx, qy) = P1+P2 in affine coordinates
   function ecAdd(
     uint256 _x1,
     uint256 _y1,
     uint256 _x2,
-    uint256 _y2,
-    uint256 _aa,
-    uint256 _pp)
+    uint256 _y2)
     internal pure returns(uint256, uint256)
   {
     uint x = 0;
@@ -182,16 +162,14 @@ library EllipticCurve {
     // Double if x1==x2 else add
     if (_x1==_x2) {
       // y1 = -y2 mod p
-      if (addmod(_y1, _y2, _pp) == 0) {
+      if (addmod(_y1, _y2, PP) == 0) {
         return(0, 0);
       } else {
         // P1 = P2
         (x, y, z) = jacDouble(
           _x1,
           _y1,
-          1,
-          _aa,
-          _pp);
+          1);
       }
     } else {
       (x, y, z) = jacAdd(
@@ -200,15 +178,13 @@ library EllipticCurve {
         1,
         _x2,
         _y2,
-        1,
-        _pp);
+        1);
     }
     // Get back to affine
     return toAffine(
       x,
       y,
-      z,
-      _pp);
+      z);
   }
 
   /// @dev Substract two points (x1, y1) and (x2, y2) in affine coordinates.
@@ -216,43 +192,33 @@ library EllipticCurve {
   /// @param _y1 coordinate y of P1
   /// @param _x2 coordinate x of P2
   /// @param _y2 coordinate y of P2
-  /// @param _aa constant of the curve
-  /// @param _pp the modulus
   /// @return (qx, qy) = P1-P2 in affine coordinates
   function ecSub(
     uint256 _x1,
     uint256 _y1,
     uint256 _x2,
-    uint256 _y2,
-    uint256 _aa,
-    uint256 _pp)
+    uint256 _y2)
   internal pure returns(uint256, uint256)
   {
     // invert square
-    (uint256 x, uint256 y) = ecInv(_x2, _y2, _pp);
+    (uint256 x, uint256 y) = ecInv(_x2, _y2);
     // P1-square
     return ecAdd(
       _x1,
       _y1,
       x,
-      y,
-      _aa,
-      _pp);
+      y);
   }
 
   /// @dev Multiply point (x1, y1, z1) times d in affine coordinates.
   /// @param _k scalar to multiply
   /// @param _x coordinate x of P1
   /// @param _y coordinate y of P1
-  /// @param _aa constant of the curve
-  /// @param _pp the modulus
   /// @return (qx, qy) = d*P in affine coordinates
   function ecMul(
     uint256 _k,
     uint256 _x,
-    uint256 _y,
-    uint256 _aa,
-    uint256 _pp)
+    uint256 _y)
   internal pure returns(uint256, uint256)
   {
     // Jacobian multiplication
@@ -260,15 +226,12 @@ library EllipticCurve {
       _k,
       _x,
       _y,
-      1,
-      _aa,
-      _pp);
+      1);
     // Get back to affine
     return toAffine(
       x1,
       y1,
-      z1,
-      _pp);
+      z1);
   }
 
   /// @dev Adds two points (x1, y1, z1) and (x2 y2, z2).
@@ -278,7 +241,6 @@ library EllipticCurve {
   /// @param _x2 coordinate x of square
   /// @param _y2 coordinate y of square
   /// @param _z2 coordinate z of square
-  /// @param _pp the modulus
   /// @return (qx, qy, qz) P1+square in Jacobian
   function jacAdd(
     uint256 _x1,
@@ -286,8 +248,7 @@ library EllipticCurve {
     uint256 _z1,
     uint256 _x2,
     uint256 _y2,
-    uint256 _z2,
-    uint256 _pp)
+    uint256 _z2)
   internal pure returns (uint256, uint256, uint256)
   {
     if (_x1==0 && _y1==0)
@@ -297,17 +258,17 @@ library EllipticCurve {
 
     // We follow the equations described in https://pdfs.semanticscholar.org/5c64/29952e08025a9649c2b0ba32518e9a7fb5c2.pdf Section 5
     uint[4] memory zs; // z1^2, z1^3, z2^2, z2^3
-    zs[0] = mulmod(_z1, _z1, _pp);
-    zs[1] = mulmod(_z1, zs[0], _pp);
-    zs[2] = mulmod(_z2, _z2, _pp);
-    zs[3] = mulmod(_z2, zs[2], _pp);
+    zs[0] = mulmod(_z1, _z1, PP);
+    zs[1] = mulmod(_z1, zs[0], PP);
+    zs[2] = mulmod(_z2, _z2, PP);
+    zs[3] = mulmod(_z2, zs[2], PP);
 
     // u1, s1, u2, s2
     zs = [
-      mulmod(_x1, zs[2], _pp),
-      mulmod(_y1, zs[3], _pp),
-      mulmod(_x2, zs[0], _pp),
-      mulmod(_y2, zs[1], _pp)
+      mulmod(_x1, zs[2], PP),
+      mulmod(_y1, zs[3], PP),
+      mulmod(_x2, zs[0], PP),
+      mulmod(_y2, zs[1], PP)
     ];
 
     // In case of zs[0] == zs[2] && zs[1] == zs[3], double function should be used
@@ -315,21 +276,21 @@ library EllipticCurve {
 
     uint[4] memory hr;
     //h
-    hr[0] = addmod(zs[2], _pp - zs[0], _pp);
+    hr[0] = addmod(zs[2], PP - zs[0], PP);
     //r
-    hr[1] = addmod(zs[3], _pp - zs[1], _pp);
+    hr[1] = addmod(zs[3], PP - zs[1], PP);
     //h^2
-    hr[2] = mulmod(hr[0], hr[0], _pp);
+    hr[2] = mulmod(hr[0], hr[0], PP);
     // h^3
-    hr[3] = mulmod(hr[2], hr[0], _pp);
+    hr[3] = mulmod(hr[2], hr[0], PP);
     // qx = -h^3  -2u1h^2+r^2
-    uint256 qx = addmod(mulmod(hr[1], hr[1], _pp), _pp - hr[3], _pp);
-    qx = addmod(qx, _pp - mulmod(2, mulmod(zs[0], hr[2], _pp), _pp), _pp);
+    uint256 qx = addmod(mulmod(hr[1], hr[1], PP), PP - hr[3], PP);
+    qx = addmod(qx, PP - mulmod(2, mulmod(zs[0], hr[2], PP), PP), PP);
     // qy = -s1*z1*h^3+r(u1*h^2 -x^3)
-    uint256 qy = mulmod(hr[1], addmod(mulmod(zs[0], hr[2], _pp), _pp - qx, _pp), _pp);
-    qy = addmod(qy, _pp - mulmod(zs[1], hr[3], _pp), _pp);
+    uint256 qy = mulmod(hr[1], addmod(mulmod(zs[0], hr[2], PP), PP - qx, PP), PP);
+    qy = addmod(qy, PP - mulmod(zs[1], hr[3], PP), PP);
     // qz = h*z1*z2
-    uint256 qz = mulmod(hr[0], mulmod(_z1, _z2, _pp), _pp);
+    uint256 qz = mulmod(hr[0], mulmod(_z1, _z2, PP), PP);
     return(qx, qy, qz);
   }
 
@@ -337,15 +298,11 @@ library EllipticCurve {
   /// @param _x coordinate x of P1
   /// @param _y coordinate y of P1
   /// @param _z coordinate z of P1
-  /// @param _aa the a scalar in the curve equation
-  /// @param _pp the modulus
   /// @return (qx, qy, qz) 2P in Jacobian
   function jacDouble(
     uint256 _x,
     uint256 _y,
-    uint256 _z,
-    uint256 _aa,
-    uint256 _pp)
+    uint256 _z)
   internal pure returns (uint256, uint256, uint256)
   {
     if (_z == 0)
@@ -354,23 +311,23 @@ library EllipticCurve {
     // We follow the equations described in https://pdfs.semanticscholar.org/5c64/29952e08025a9649c2b0ba32518e9a7fb5c2.pdf Section 5
     // Note: there is a bug in the paper regarding the m parameter, M=3*(x1^2)+a*(z1^4)
     // x, y, z at this point represent the squares of _x, _y, _z
-    uint256 x = mulmod(_x, _x, _pp); //x1^2
-    uint256 y = mulmod(_y, _y, _pp); //y1^2
-    uint256 z = mulmod(_z, _z, _pp); //z1^2
+    uint256 x = mulmod(_x, _x, PP); //x1^2
+    uint256 y = mulmod(_y, _y, PP); //y1^2
+    uint256 z = mulmod(_z, _z, PP); //z1^2
 
     // s
-    uint s = mulmod(4, mulmod(_x, y, _pp), _pp);
+    uint s = mulmod(4, mulmod(_x, y, PP), PP);
     // m
-    uint m = addmod(mulmod(3, x, _pp), mulmod(_aa, mulmod(z, z, _pp), _pp), _pp);
+    uint m = mulmod(3, x, PP);
 
     // x, y, z at this point will be reassigned and rather represent qx, qy, qz from the paper
     // This allows to reduce the gas cost and stack footprint of the algorithm
     // qx
-    x = addmod(mulmod(m, m, _pp), _pp - addmod(s, s, _pp), _pp);
+    x = addmod(mulmod(m, m, PP), PP - addmod(s, s, PP), PP);
     // qy = -8*y1^4 + M(S-T)
-    y = addmod(mulmod(m, addmod(s, _pp - x, _pp), _pp), _pp - mulmod(8, mulmod(y, y, _pp), _pp), _pp);
+    y = addmod(mulmod(m, addmod(s, PP - x, PP), PP), PP - mulmod(8, mulmod(y, y, PP), PP), PP);
     // qz = 2*y1*z1
-    z = mulmod(2, mulmod(_y, _z, _pp), _pp);
+    z = mulmod(2, mulmod(_y, _z, PP), PP);
 
     return (x, y, z);
   }
@@ -380,16 +337,12 @@ library EllipticCurve {
   /// @param _x coordinate x of P1
   /// @param _y coordinate y of P1
   /// @param _z coordinate z of P1
-  /// @param _aa constant of curve
-  /// @param _pp the modulus
   /// @return (qx, qy, qz) d*P1 in Jacobian
   function jacMul(
     uint256 _d,
     uint256 _x,
     uint256 _y,
-    uint256 _z,
-    uint256 _aa,
-    uint256 _pp)
+    uint256 _z)
   internal pure returns (uint256, uint256, uint256)
   {
     // Early return in case that `_d == 0`
@@ -411,16 +364,13 @@ library EllipticCurve {
           qz,
           _x,
           _y,
-          _z,
-          _pp);
+          _z);
       }
       remaining = remaining / 2;
       (_x, _y, _z) = jacDouble(
         _x,
         _y,
-        _z,
-        _aa,
-        _pp);
+        _z);
     }
     return (qx, qy, qz);
   }

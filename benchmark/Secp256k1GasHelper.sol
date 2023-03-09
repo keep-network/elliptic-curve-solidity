@@ -22,9 +22,7 @@ contract Secp256k1GasHelper {
     (qx, qy) = EllipticCurve.ecMul(
       privKey,
       GX,
-      GY,
-      AA,
-      PP
+      GY
     );
   }
 }

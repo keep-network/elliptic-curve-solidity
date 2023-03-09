@@ -13,11 +13,11 @@ import "../FastEcMul.sol";
 contract TestEllipticCurve {
 
   function invMod(uint256 _x, uint256 _pp) public pure returns (uint256) {
-    return EllipticCurve.invMod(_x, _pp);
+    return EllipticCurve.invMod(_x);
   }
 
   function expMod(uint256 _base, uint256 _exp, uint256 _pp) public pure returns (uint256) {
-    return EllipticCurve.expMod(_base, _exp, _pp);
+    return EllipticCurve.expMod(_base, _exp);
   }
 
   function toAffine(
@@ -30,8 +30,7 @@ contract TestEllipticCurve {
     return EllipticCurve.toAffine(
       _x,
       _y,
-      _z,
-      _pp);
+      _z);
   }
 
   function deriveY(
@@ -44,10 +43,7 @@ contract TestEllipticCurve {
   {
     return EllipticCurve.deriveY(
       _prefix,
-      _x,
-      _aa,
-      _bb,
-      _pp);
+      _x);
   }
 
   function isOnCurve(
@@ -60,10 +56,7 @@ contract TestEllipticCurve {
   {
     return EllipticCurve.isOnCurve(
       _x,
-      _y,
-      _aa,
-      _bb,
-      _pp);
+      _y);
   }
 
   function ecInv(
@@ -74,8 +67,7 @@ contract TestEllipticCurve {
   {
     return EllipticCurve.ecInv(
       _x,
-      _y,
-      _pp);
+      _y);
   }
 
   function ecAdd(
@@ -91,9 +83,7 @@ contract TestEllipticCurve {
       _x1,
       _y1,
       _x2,
-      _y2,
-      _aa,
-      _pp);
+      _y2);
   }
 
   function ecSub(
@@ -109,9 +99,7 @@ contract TestEllipticCurve {
       _x1,
       _y1,
       _x2,
-      _y2,
-      _aa,
-      _pp);
+      _y2);
   }
 
   function ecMul(
@@ -125,9 +113,7 @@ contract TestEllipticCurve {
     return EllipticCurve.ecMul(
       _k,
       _x,
-      _y,
-      _aa,
-      _pp);
+      _y);
   }
 
   function jacAdd(
@@ -146,8 +132,7 @@ contract TestEllipticCurve {
       _z1,
       _x2,
       _y2,
-      _z2,
-      _pp);
+      _z2);
   }
 
   function jacDouble(
@@ -161,9 +146,7 @@ contract TestEllipticCurve {
     return EllipticCurve.jacDouble(
       _x,
       _y,
-      _z,
-      _aa,
-      _pp);
+      _z);
   }
 
   function jacMul(
@@ -179,13 +162,11 @@ contract TestEllipticCurve {
       _d,
       _x,
       _y,
-      _z,
-      _aa,
-      _pp);
+      _z);
   }
 
   function decomposeScalar(uint256 _k, uint256 _nn, uint256 _lambda) public pure returns (int256, int256) {
-    return FastEcMul.decomposeScalar(_k, _nn, _lambda);
+    return FastEcMul.decomposeScalar(_k);
   }
 
   function ecSimMul(
@@ -198,10 +179,7 @@ contract TestEllipticCurve {
   {
     return FastEcMul.ecSimMul(
       _scalars,
-      _points,
-      _aa,
-      _beta,
-      _pp);
+      _points);
   }
 
 }

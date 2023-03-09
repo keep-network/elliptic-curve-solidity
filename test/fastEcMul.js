@@ -1,7 +1,7 @@
 const EllipticCurve = artifacts.require("./TestEllipticCurve")
 
 contract("FastEcMul", accounts => {
-  const curves = ["secp256k1", "secp192k1", "secp224k1", "P256", "P192", "P224"]
+  const curves = ["secp256k1"]
 
   for (const curve of curves) {
     describe(`Arithmetic operations - Curve ${curve}`, () => {
