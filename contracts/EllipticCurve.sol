@@ -15,17 +15,18 @@ library EllipticCurve {
   // Pre-computed constant for 2 ** 255
   uint256 constant private U255_MAX_PLUS_1 = 57896044618658097711785492504343953926634992332820282019728792003956564819968;
 
-  uint256 private constant GX = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798;
-  uint256 private constant GY = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8;
-  uint256 private constant AA = 0;
-  uint256 private constant BB = 7;
-  uint256 private constant PP = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F;
+  uint256 internal constant GX = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798;
+  uint256 internal constant GY = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8;
+  uint256 internal constant AA = 0;
+  uint256 internal constant BB = 7;
+  uint256 internal constant PP = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F;
+  uint256 internal constant NN = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141;
 
   /// @dev Modular euclidean inverse of a number (mod p).
   /// @param _x The number
   /// @return q such that x*q = 1 (mod PP)
   function invMod(uint256 _x) internal pure returns (uint256) {
-    require(_x != 0 && _x != PP && PP != 0, "Invalid number");
+    require(_x != 0 && _x != PP, "Invalid number");
     uint256 q = 0;
     uint256 newT = 1;
     uint256 r = PP;

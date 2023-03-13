@@ -110,6 +110,8 @@ library FastEcMul {
       maxCount,
       _points);
 
+    if (z == 0) { return (0, 0); } // XXX: handle infinity without reverting
+
     return EllipticCurve.toAffine(
       x,
       y,
