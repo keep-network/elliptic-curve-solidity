@@ -129,7 +129,10 @@ library FastEcMul {
 
     // P1 Lookup Table
     iPj = _iP[0];
-    iPj[0] = [_points[0], _points[1], 1]; // P1
+    // iPj[0] = [_points[0], _points[1], 1]; // P1
+    iPj[0][0] = _points[0];
+    iPj[0][1] = _points[1];
+    iPj[0][2] = 1;
 
     (double[0], double[1], double[2]) = EllipticCurve.jacDouble(
       iPj[0][0],
