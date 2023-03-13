@@ -6,7 +6,7 @@ import {EllipticCurve as ec} from "./EllipticCurve.sol";
 import {FastEcMul as fec} from "./FastEcMul.sol";
 
 library Schnorr {
-
+    
     function verify(bytes memory sig, bytes32 pk, bytes32 m) internal pure returns (bool, string memory) {
         require(sig.length == 64, "invalid signature length");
         uint256 py = ec.deriveY(uint8(0x02), uint256(pk));
@@ -40,8 +40,7 @@ library Schnorr {
     }
 
     function hash(bytes memory data) internal pure returns (bytes32) {
-        string memory tag = "BIP0340/challenge";
-        bytes32 htag = sha256(abi.encodePacked(tag));
+        bytes32 htag = sha256(abi.encodePacked("BIP0340/challenge"));
         return sha256(abi.encodePacked(htag, htag, data));
     }
 }
