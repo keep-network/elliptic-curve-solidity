@@ -4,6 +4,7 @@ pragma solidity 0.6.12;
 
 import "../EllipticCurve.sol";
 import "../FastEcMul.sol";
+import "../Schnorr.sol";
 
 
 /**
@@ -182,4 +183,12 @@ contract TestEllipticCurve {
       _points);
   }
 
+  function schnorrVerify(
+    bytes calldata sig,
+    bytes32 pk,
+    bytes32 m)
+  public pure returns (bool, string memory)
+  {
+    return Schnorr.verify(sig, pk, m);
+  }
 }

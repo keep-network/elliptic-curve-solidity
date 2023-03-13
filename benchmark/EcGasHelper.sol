@@ -4,7 +4,7 @@ pragma solidity 0.6.12;
 
 import "../contracts/EllipticCurve.sol";
 import "../contracts/FastEcMul.sol";
-
+import "../contracts/Schnorr.sol";
 
 /**
  * @title Test Helper for the EllipticCurve contract
@@ -128,6 +128,15 @@ contract EcGasHelper {
     return FastEcMul.ecSimMul(
       _scalars,
       _points);
+  }
+
+  function _schnorrVerify(
+    bytes calldata sig,
+    bytes32 pk,
+    bytes32 m)
+  external returns (bool, string memory)
+  {
+    return Schnorr.verify(sig, pk, m);
   }
 
 }

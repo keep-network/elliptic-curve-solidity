@@ -189,4 +189,43 @@ contract("EllipticCurve", accounts => {
       }
     })
   }
+
+  describe(`Schnorr signatures - Curve secp256k1`, () => {
+    const curveData = require(`./data/schnorr.json`)
+
+    let ecLib
+    before(async () => {
+      ecLib = await EllipticCurve.new()
+    })
+
+    
+    // Valid vectors
+    for (const [index, test] of curveData.vectors.valid.entries()) {
+      it(`should accept vector #${index}`, async () => {
+        const res = await ecLib.schnorrVerify(
+          test.sig,
+          test.pubkey,
+          test.msg
+        )
+
+        assert.equal(res[1], "")
+        assert.isTrue(res[0])
+      })
+    }
+    
+
+    // Invalid vectors
+    for (const [index, test] of curveData.vectors.invalid.entries()) {
+      it(`should reject vector #${index + 5}`, async () => {
+        const res = await ecLib.schnorrVerify(
+          test.sig,
+          test.pubkey,
+          test.msg
+        )
+
+        console.log(res[1])
+        assert.isFalse(res[0])
+      })
+    }
+  })
 })

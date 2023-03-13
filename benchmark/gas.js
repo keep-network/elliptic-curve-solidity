@@ -211,4 +211,24 @@ contract("EcGasHelper - Gas consumption analysis", accounts => {
       }
     })
   }
+
+  describe(`Schnorr signatures - Curve secp256k1`, () => {
+    const curveData = require(`../test/data/schnorr.json`)
+
+    let helper
+    before(async () => {
+      helper = await EcGasHelper.new()
+    })
+
+    // Valid vectors
+    for (const [index, test] of curveData.vectors.valid.entries()) {
+      it(`should accept vector #${index}`, async () => {
+        await helper._schnorrVerify(
+          test.sig,
+          test.pubkey,
+          test.msg
+        )
+      })
+    }
+  })
 })
