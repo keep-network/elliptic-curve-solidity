@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.5.3 <0.7.0;
+pragma solidity 0.8.19;
 
 
 /**
@@ -26,6 +26,7 @@ library EllipticCurve {
   /// @param _x The number
   /// @return q such that x*q = 1 (mod PP)
   function invMod(uint256 _x) internal pure returns (uint256) {
+    unchecked {
     require(_x != 0 && _x != PP, "Invalid number");
     uint256 q = 0;
     uint256 newT = 1;
@@ -38,6 +39,7 @@ library EllipticCurve {
     }
 
     return q;
+    }
   }
 
   /// @dev Modular exponentiation, b^e % PP.

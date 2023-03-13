@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.5.3 <0.7.0;
+pragma solidity 0.8.19;
 
 import "./EllipticCurve.sol";
 
@@ -32,6 +32,7 @@ library FastEcMul {
   /// @param _k the scalar to be decompose
   /// @return k1 and k2  such that k=k1+k2*LAMBDA (mod n)
   function decomposeScalar(uint256 _k) internal pure returns (int256, int256) {
+    unchecked {
     uint256 k = _k % NN;
     // Extended Euclidean Algorithm for n and LAMBDA
     int256[2] memory t;
@@ -82,6 +83,7 @@ library FastEcMul {
     }
 
     return (k1, k2);
+    }
   }
 
   /// @notice Simultaneous multiplication of the form kP + lQ.
@@ -246,6 +248,7 @@ library FastEcMul {
     uint256[4] memory _points)
   private pure  returns (uint256, uint256, uint256)
   {
+    unchecked {
     uint[3] memory mulPoint;
     uint256[3][4][4] memory iP;
     _lookupSimMul(
@@ -351,6 +354,7 @@ library FastEcMul {
     }
 
     return (mulPoint[0], mulPoint[1], mulPoint[2]);
+    }
   }
 
   /// @dev Multiplication of a uint256 a and uint256 b. Because in Solidity each variable can not be greater than 256 bits,
@@ -359,6 +363,7 @@ library FastEcMul {
   /// @param _b uint256
   /// @return (ab2, ab1, ab0)
   function _multiply256(uint256 _a, uint256 _b) private pure returns (uint256, uint256, uint256) {
+    unchecked {
     uint256 aM = _a >> 128;
     uint256 am = _a & U128_MAX;
     uint256 bM = _b >> 128;
@@ -372,6 +377,7 @@ library FastEcMul {
 
     return (ab2, ab1, ab0);
   }
+  }
 
   /// @dev Division of an integer of 312 bits by a 256-bit integer.
   /// @param _aM the higher 256 bits of the numarator
@@ -379,6 +385,7 @@ library FastEcMul {
   /// @param _b the 256-bit denominator
   /// @return q the result of the division and the rest r
   function _bigDivision(uint256 _aM, uint256 _am, uint256 _b) private pure returns (uint256, uint256) {
+    unchecked {
     uint256 aM = _aM % _b;
 
     uint256 shift = 0;
@@ -410,6 +417,7 @@ library FastEcMul {
 
     //  `_aM / _b` is qM from the original algorithm, inlined here to reduce stack usage
     return (q + _aM / _b, r);
+    }
   }
 
   /// @dev Absolute value of a 25-bit integer.

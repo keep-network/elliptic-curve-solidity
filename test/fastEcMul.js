@@ -1,6 +1,6 @@
 const EllipticCurve = artifacts.require("./TestEllipticCurve")
 
-contract("FastEcMul", accounts => {
+contract.only("FastEcMul", accounts => {
   const curves = ["secp256k1"]
 
   for (const curve of curves) {

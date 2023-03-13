@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.5.3 <0.7.0;
+pragma solidity 0.8.19;
 
 import {EllipticCurve as ec} from "./EllipticCurve.sol";
 import {FastEcMul as fec} from "./FastEcMul.sol";
 
 library Schnorr {
-    
+
     function verify(bytes memory sig, bytes32 pk, bytes32 m) internal pure returns (bool, string memory) {
         require(sig.length == 64, "invalid signature length");
         uint256 py = ec.deriveY(uint8(0x02), uint256(pk));
